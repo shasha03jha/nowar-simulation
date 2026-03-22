@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The No-War Simulation — Live Global Conflict Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --surface2: #1a1a1a;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.15);
+  --text: #f0ede8;
+  --muted: #888580;
+  --red: #e85c3a;
+  --red-bg: rgba(232,92,58,0.1);
+  --amber: #e8a53a;
+  --amber-bg: rgba(232,165,58,0.1);
+  --green: #4caf7d;
+  --green-bg: rgba(76,175,125,0.1);
+  --blue: #4a9eff;
+  --blue-bg: rgba(74,158,255,0.1);
+  --purple: #a78bfa;
+  --purple-bg: rgba(167,139,250,0.1);
+  --teal: #2dd4bf;
+  --teal-bg: rgba(45,212,191,0.1);
+  --accent: #e85c3a;
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-display);min-height:100vh;overflow-x:hidden}
+
+/* GRID NOISE */
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);background-size:32px 32px;pointer-events:none;z-index:0}
+
+/* HEADER */
+header{position:sticky;top:0;z-index:100;background:rgba(10,10,10,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 2rem}
+.header-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px;gap:1rem}
+.logo{display:flex;align-items:center;gap:10px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+.logo-text{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text)}
+.logo-sub{font-size:10px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.05em}
+.header-stats{display:flex;gap:1.5rem;align-items:center}
+.hstat{text-align:right}
+.hstat-val{font-size:14px;font-weight:700;font-family:var(--font-mono);color:var(--red)}
+.hstat-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.x-btn{background:var(--text);color:var(--bg);font-size:11px;font-weight:700;font-family:var(--font-mono);padding:7px 16px;border:none;border-radius:4px;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;transition:opacity .2s;white-space:nowrap}
+.x-btn:hover{opacity:.85}
+
+/* MAIN */
+main{max-width:1400px;margin:0 auto;padding:2rem;position:relative;z-index:1}
+
+/* GLOBAL METRICS */
+.global-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:2rem}
+.gm{background:var(--surface);padding:1.25rem 1rem;text-align:center}
+.gm-val{font-size:22px;font-weight:800;font-family:var(--font-mono);margin-bottom:3px}
+.gm-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+
+/* CONFLICT GRID */
+.section-title{font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem}
+.conflict-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:2rem}
+.conflict-card{background:var(--surface);padding:1.25rem;cursor:pointer;transition:background .15s;position:relative}
+.conflict-card:hover{background:var(--surface2)}
+.conflict-card.active{background:var(--surface2);border-left:2px solid var(--accent)}
+.cc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem}
+.cc-name{font-size:15px;font-weight:700;line-height:1.2}
+.cc-region{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
+.severity-badge{font-size:9px;font-weight:700;font-family:var(--font-mono);padding:3px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.sev-critical{background:rgba(232,92,58,0.15);color:var(--red);border:1px solid rgba(232,92,58,0.3)}
+.sev-high{background:rgba(232,165,58,0.15);color:var(--amber);border:1px solid rgba(232,165,58,0.3)}
+.sev-medium{background:rgba(74,158,255,0.15);color:var(--blue);border:1px solid rgba(74,158,255,0.3)}
+.cc-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:.75rem}
+.cc-stat{background:var(--bg);border-radius:4px;padding:6px 8px}
+.cc-stat-val{font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--red)}
+.cc-stat-label{font-size:9px;color:var(--muted);margin-top:1px}
+.protocol-bar{display:flex;gap:2px;margin-bottom:.5rem}
+.pb-day{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.08)}
+.pb-day.done{background:var(--green)}
+.pb-day.active{background:var(--blue);animation:blink .8s ease-in-out infinite}
+.pb-day.blocked{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.cc-roadblock{font-size:10px;color:var(--muted);line-height:1.4;margin-top:.5rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* DETAIL PANEL */
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:2rem;margin-bottom:2rem;display:none}
+.detail-panel.open{display:block}
+.dp-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
+.dp-title{font-size:28px;font-weight:800;line-height:1.1}
+.dp-close{background:none;border:1px solid var(--border2);color:var(--muted);font-size:11px;font-family:var(--font-mono);padding:6px 12px;border-radius:4px;cursor:pointer;letter-spacing:.05em}
+.dp-close:hover{color:var(--text);border-color:var(--text)}
+.dp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem}
+.dp-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:1rem}
+.dp-box-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:.75rem}
+.dp-row{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.5rem;font-size:12px}
+.dp-row-label{color:var(--muted);flex-shrink:0}
+.dp-row-val{font-weight:600;font-family:var(--font-mono);text-align:right;line-height:1.3}
+.dp-row-val.red{color:var(--red)}
+.dp-row-val.amber{color:var(--amber)}
+.dp-row-val.green{color:var(--green)}
+
+/* ACTORS */
+.actors-section{margin-bottom:1.5rem}
+.actor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.actor-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.75rem}
+.actor-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem}
+.actor-name{font-size:13px;font-weight:700}
+.actor-type{font-size:8px;font-weight:700;padding:2px 6px;border-radius:2px;text-transform:uppercase;letter-spacing:.06em}
+.at-aggressor{background:rgba(232,92,58,0.15);color:var(--red)}
+.at-funder{background:rgba(232,165,58,0.15);color:var(--amber)}
+.at-enabler{background:rgba(74,158,255,0.15);color:var(--blue)}
+.at-profiteer{background:rgba(167,139,250,0.15);color:var(--purple)}
+.at-mediator{background:rgba(45,212,191,0.15);color:var(--teal)}
+.at-passive{background:rgba(255,255,255,0.06);color:var(--muted)}
+.actor-role{font-size:10px;color:var(--muted);line-height:1.4;margin-bottom:.5rem}
+.actor-profit{font-size:11px;color:var(--amber);font-family:var(--font-mono)}
+.actor-gain{font-size:10px;color:var(--green);margin-top:.3rem;line-height:1.4}
+
+/* PROTOCOL DETAIL */
+.protocol-detail{margin-bottom:1.5rem}
+.pd-days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.pd-day{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.75rem .5rem;text-align:center;position:relative}
+.pd-day.done{border-color:rgba(76,175,125,0.3);background:rgba(76,175,125,0.05)}
+.pd-day.active{border-color:rgba(74,158,255,0.4);background:rgba(74,158,255,0.08)}
+.pd-day.blocked{border-color:rgba(232,92,58,0.3);background:rgba(232,92,58,0.05)}
+.pd-num{font-size:18px;font-weight:800;font-family:var(--font-mono);line-height:1}
+.pd-num.done{color:var(--green)}
+.pd-num.active{color:var(--blue)}
+.pd-num.blocked{color:var(--red)}
+.pd-num.pending{color:var(--muted)}
+.pd-label{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:3px;line-height:1.2}
+
+/* BOXES */
+.info-boxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;margin-bottom:1.5rem}
+.ib{border-radius:6px;padding:1rem}
+.ib-red{background:var(--red-bg);border:1px solid rgba(232,92,58,0.2)}
+.ib-green{background:var(--green-bg);border:1px solid rgba(76,175,125,0.2)}
+.ib-amber{background:var(--amber-bg);border:1px solid rgba(232,165,58,0.2)}
+.ib-purple{background:var(--purple-bg);border:1px solid rgba(167,139,250,0.2)}
+.ib-teal{background:var(--teal-bg);border:1px solid rgba(45,212,191,0.2)}
+.ib-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem}
+.ib-red .ib-title{color:var(--red)}
+.ib-green .ib-title{color:var(--green)}
+.ib-amber .ib-title{color:var(--amber)}
+.ib-purple .ib-title{color:var(--purple)}
+.ib-teal .ib-title{color:var(--teal)}
+.ib-text{font-size:12px;line-height:1.6;color:var(--text)}
+.ib-sub{font-size:11px;color:var(--muted);margin-top:.4rem;font-family:var(--font-mono)}
+
+/* 1-CLICK ACTIONS */
+.actions-section{margin-bottom:1.5rem}
+.action-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.action-btn{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.875rem;cursor:pointer;text-align:left;transition:border-color .15s,background .15s;width:100%}
+.action-btn:hover{border-color:var(--border2);background:var(--surface2)}
+.action-btn-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem}
+.action-btn-target{font-size:12px;font-weight:700;color:var(--text)}
+.action-btn-type{font-size:8px;font-family:var(--font-mono);color:var(--blue);text-transform:uppercase;letter-spacing:.06em}
+.action-btn-text{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:.5rem}
+.action-btn-cta{font-size:10px;font-weight:700;font-family:var(--font-mono);color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.x-icon{font-size:12px}
+
+/* LINKAGE */
+.linkage-box{background:var(--amber-bg);border:1px solid rgba(232,165,58,0.2);border-radius:6px;padding:1rem;margin-bottom:1.5rem}
+.linkage-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--amber);margin-bottom:.5rem}
+.linkage-tags{display:flex;flex-wrap:wrap;gap:6px}
+.ltag{font-size:10px;font-family:var(--font-mono);background:rgba(232,165,58,0.1);border:1px solid rgba(232,165,58,0.2);color:var(--amber);padding:3px 8px;border-radius:3px}
+
+/* FOOTER */
+footer{border-top:1px solid var(--border);padding:1.5rem 2rem;text-align:center;position:relative;z-index:1}
+.footer-inner{max-width:1400px;margin:0 auto;font-size:10px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.05em;line-height:1.8}
+
+/* TOAST */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:.875rem 1.25rem;font-size:12px;font-family:var(--font-mono);z-index:999;transform:translateY(100px);opacity:0;transition:transform .3s,opacity .3s;max-width:320px;line-height:1.5}
+.toast.show{transform:translateY(0);opacity:1}
+
+@media(max-width:768px){
+  main{padding:1rem}
+  .header-stats{display:none}
+  .pd-days{grid-template-columns:repeat(7,1fr);gap:3px}
+  .pd-day{padding:.5rem .25rem}
+  .pd-num{font-size:14px}
+  .dp-title{font-size:20px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="live-dot"></div>
+      <div>
+        <div class="logo-text">The No-War Simulation</div>
+        <div class="logo-sub">Global Conflict Monitor — By Iron Man</div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="hstat"><div class="hstat-val" id="h-conflicts">15</div><div class="hstat-label">Active Conflicts</div></div>
+      <div class="hstat"><div class="hstat-val" id="h-lives">~1.2M+</div><div class="hstat-label">Lives Lost (est.)</div></div>
+      <div class="hstat"><div class="hstat-val" id="h-cost">$4.8T+</div><div class="hstat-label">Ripple Cost</div></div>
+      <div class="hstat"><div class="hstat-val" id="h-date"></div><div class="hstat-label">Last Updated</div></div>
+    </div>
+    <button class="x-btn" onclick="shareToX()">Share on 𝕏</button>
+  </div>
+</header>
+
+<main>
+  <div class="global-metrics" id="global-metrics"></div>
+  <div class="section-title">Select a conflict for full breakdown</div>
+  <div class="conflict-grid" id="conflict-grid"></div>
+  <div class="detail-panel" id="detail-panel"></div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    THE NO-WAR SIMULATION — IRON MAN &nbsp;·&nbsp; WAR IS ORGANIZED CONTINUITY. ANYTHING ORGANIZED CAN BE REORGANIZED.<br>
+    Every system visible here is maintained. Every maintained system can be interrupted. Every interruption is a choice.<br>
+    This dashboard is a pressure system. Share it. Tag the actors. Make the invisible visible.
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const today = new Date();
+document.getElementById('h-date').textContent = today.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+
+const CONFLICTS = [
+{
+  id:'ukraine', name:'Russia–Ukraine', region:'Eastern Europe', severity:'critical',
+  deaths:'500K+', property:'$700B+', env:'Severe — nuclear zones, Black Sea, soil', productivity:'$1.1T GDP loss',
+  protocol:['done','done','active','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'China unwilling to reduce energy imports due to domestic growth dependency',
+  next_step:'Coordinated energy cap by China + India — reduce Russia war revenue 20%',
+  responsible:'China (energy), India (crude), EU (finance)',
+  gain_comply:'China: $400B energy transition contracts. India: infrastructure priority. EU: stable energy future.',
+  linked:['Israel–Palestine','Yemen','Iran proxy network','Global energy markets'],
+  actors:[
+    {name:'Russia',type:'aggressor',role:'Military operations, energy export revenue',profit:'$80B+/yr oil revenue'},
+    {name:'USA',type:'enabler',role:'Military + financial support to Ukraine',profit:'Arms industry: $20B+ contracts',gain:'Regional stability + reduced NATO burden'},
+    {name:'China',type:'funder',role:'Energy buyer, diplomatic shield, trade partner',profit:'Discounted oil — $40B+ savings',gain:'$400B long-term energy contracts + trade corridor'},
+    {name:'India',type:'funder',role:'Discounted crude buyer + re-exporter',profit:'Refining margin $8–12B/yr',gain:'Infrastructure priority + zero-failure agri systems'},
+    {name:'Raytheon/RTX',type:'profiteer',role:'Missile + air defense manufacturer',profit:'$3.5B+ from Saudi/Ukraine orders'},
+    {name:'EU',type:'mediator',role:'Sanctions, financial aid, residual energy',profit:'Leverage over post-war reconstruction',gain:'Energy independence + $500B reconstruction access'},
+    {name:'Turkey',type:'enabler',role:'Maritime corridor + negotiation broker',profit:'Transit fees + grain deal leverage',gain:'Trade corridor dominance + EU leverage'},
+    {name:'UAE',type:'enabler',role:'Financial routing, sanctions bypass hub',profit:'$2B+ financial intermediation',gain:'Stark certification premium market access'},
+  ],
+  actions:[
+    {target:'@KremlinRussia_E',type:'Demand',text:'The 7-Day Protocol has begun. Day 3: Disruption. Every hour of continuation costs Russia $200M in irreversible ripple loss. The incentive flip is live. What is your declaration?'},
+    {target:'@ChinaMFA_Spokesman',type:'Incentive',text:'China gains $400B in guaranteed energy transition contracts by capping Russian crude imports by 20%. The math is clear. The window is open. What is China\'s position today?'},
+    {target:'@SecBlinken',type:'Accountability',text:'Day 3 Protocol: US military supply pacing is the lever. Conditioning supply to de-escalation checkpoints creates peace faster than unlimited continuation. What is the condition today?'},
+    {target:'@EU_Commission',type:'Pressure',text:'EU residual energy dependency on Russia = $2B/month sustaining the war. The incentive flip activates when this drops to zero. What is the timeline?'},
+  ]
+},
+{
+  id:'palestine', name:'Israel–Palestine', region:'Middle East', severity:'critical',
+  deaths:'200K+', property:'$250B+', env:'Water systems destroyed, coastal pollution', productivity:'$80B regional trade loss',
+  protocol:['done','active','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'US domestic political constraints prevent aid conditionality. Egypt withholds corridor without security guarantees.',
+  next_step:'Guarantee open humanitarian corridors via Egypt + UN. Condition US military aid on civilian protection metrics.',
+  responsible:'USA (aid conditions), Egypt (corridor), Qatar (Hamas channel)',
+  gain_comply:'Egypt: $20B infrastructure + Suez leverage. Saudi Arabia: US security guarantee + regional dominance. USA: reduced military commitment.',
+  linked:['Yemen (Houthi Red Sea attacks)','Lebanon (Hezbollah)','Russia–Ukraine (US attention split)','Iran proxy network'],
+  actors:[
+    {name:'USA',type:'enabler',role:'Military aid + diplomatic veto shield',profit:'Strategic regional control',gain:'Regional stability + reduced military spend'},
+    {name:'Iran',type:'funder',role:'Hamas/Hezbollah proxy funding + weapons',profit:'Regional disruption at low cost ($100M/yr)',gain:'Sanctions relief + regional trade re-entry'},
+    {name:'Qatar',type:'mediator',role:'Hamas financial channel + negotiation broker',profit:'Geopolitical influence + Al Jazeera reach',gain:'Regional investment hub status'},
+    {name:'Egypt',type:'enabler',role:'Gaza border control — humanitarian gatekeeper',profit:'Aid transit leverage + US funding',gain:'$20B infrastructure package + regional influence'},
+    {name:'Saudi Arabia',type:'passive',role:'Normalization leverage withheld',profit:'Strategic patience',gain:'US security guarantee + regional trade dominance'},
+    {name:'Lockheed Martin',type:'profiteer',role:'F-35, Iron Dome components, precision munitions',profit:'$2B+ Israel defense contracts'},
+    {name:'UAE',type:'enabler',role:'Abraham Accords leverage, financial flows',profit:'Regional financial hub position',gain:'Trade normalization premium + ESG leadership'},
+    {name:'EU',type:'mediator',role:'Humanitarian aid + policy pressure',profit:'Reconstruction influence',gain:'Regional stability + trade normalization'},
+  ],
+  actions:[
+    {target:'@POTUS',type:'Accountability',text:'The 7-Day Protocol: Day 2. Full exposure of US military aid flows vs civilian casualty data is now public. Conditionality is not abandonment — it is leverage for faster resolution. What is the condition threshold?'},
+    {target:'@AbdelFattah',type:'Incentive',text:'Egypt controls the corridor that ends famine for 2.3 million people. $20B in Nile infrastructure development activates the moment the corridor opens permanently. The offer is on the table.'},
+    {target:'@TamimBinHamad',type:'Pressure',text:'Qatar holds the Hamas channel. The incentive flip: investment hub status + $50B in Gulf infrastructure access activates when Hamas declares ceasefire. The math favors peace.'},
+    {target:'@UN',type:'Demand',text:'Day 2 Protocol — full transparency required: all funding flows, aid distribution, military supply, border control policies. Public. Timestamped. Verified. What is being hidden and why?'},
+  ]
+},
+{
+  id:'yemen', name:'Yemen', region:'Middle East', severity:'critical',
+  deaths:'400K+', property:'$300B+', env:'Oil spill risk, water table collapse, farmland destroyed', productivity:'GDP down 50%+',
+  protocol:['done','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Iran continues Houthi weapons supply covertly. Saudi Arabia unwilling to concede without Iran commitment.',
+  next_step:'Simultaneous 30-day freeze — Saudi + Iran pause military support, monitored by satellite + financial tracking.',
+  responsible:'Saudi Arabia (ceasefire), Iran (Houthi funding), UN (aid routing)',
+  gain_comply:'Saudi Arabia: $200B reconstruction + Red Sea stability. Iran: sanctions relief + regional trade. Both: shipping security.',
+  linked:['Israel–Palestine (Houthi attacks)','Iran proxy network','Global shipping (Suez)','India–Pakistan (Red Sea trade)'],
+  actors:[
+    {name:'Saudi Arabia',type:'aggressor',role:'Coalition military operations since 2015',profit:'Regional security justification + $75B defense budget',gain:'$200B reconstruction contracts + Red Sea trade stability'},
+    {name:'Iran',type:'funder',role:'Houthi proxy funding + weapons (~$100M/yr)',profit:'$1T+ Red Sea disruption for minimal cost',gain:'Sanctions relief pathway + regional trade re-entry'},
+    {name:'Raytheon',type:'profiteer',role:'Paveway bombs, Patriot missiles to Saudi Arabia',profit:'$3.5B+ Yemen-linked contracts'},
+    {name:'Boeing Defense',type:'profiteer',role:'JDAM guided bomb kits, Saudi logistics',profit:'$1.2B+ munitions replenishment'},
+    {name:'UAE',type:'enabler',role:'Financial routing, southern Yemen influence, fuel arbitrage',profit:'$800M+ intermediation annually',gain:'Stark certification + premium trade access'},
+    {name:'Yemeni War Elites',type:'profiteer',role:'Checkpoint control, aid diversion, black markets',profit:'$500M+/yr war economy',gain:'Legal reconstruction contracts + formal economy access'},
+    {name:'UN/NGOs',type:'mediator',role:'Aid delivery (partially blocked)',profit:'N/A',gain:'Functioning humanitarian system'},
+    {name:'Lockheed Martin',type:'profiteer',role:'F-15 maintenance + THAAD systems',profit:'$2.1B+ Saudi maintenance contracts'},
+  ],
+  actions:[
+    {target:'@KSAmofaEN',type:'Incentive',text:'Saudi Arabia gains $200B in reconstruction contracts + guaranteed Red Sea shipping security the moment a 30-day verified ceasefire begins. The incentive flip is mathematically superior to continuation. Day 1 Protocol: declare.'},
+    {target:'@IranMFA_en',type:'Incentive',text:'Iran spends $100M/yr on Houthi proxy, gains $1T disruption — but loses $500B in sanctions-era economic opportunity. The trade: Houthi funding freeze = sanctions relief pathway + regional trade access. Better math.'},
+    {target:'@WFP',type:'Demand',text:'Yemen Day 5 Protocol requires immediate food + water system activation. 21 million people at famine risk. Aid is being blocked. Full public routing transparency — where is each shipment, who is blocking it, what is the delay?'},
+    {target:'@SecGen',type:'Accountability',text:'UN Yemen mandate: activate the 7-Day Protocol. Day 1 requires all actors to publicly declare their role and commitment. Saudi Arabia. Iran. Houthis. UAE. Every actor. Every role. Public. Now.'},
+  ]
+},
+{
+  id:'sudan', name:'Sudan', region:'Africa', severity:'critical',
+  deaths:'150K+', property:'$100B+', env:'Nile contamination risk, agricultural destruction', productivity:'70% output lost in conflict zones',
+  protocol:['done','active','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'UAE resistant to gold trade transparency — significant financial interest in current routing.',
+  next_step:'Publish full RSF gold trade routes. Activate Verified Ethical Gold premium market — legal gold 20% more profitable than smuggled.',
+  responsible:'UAE (gold transparency), African Union (mediation), UN (corridors)',
+  gain_comply:'UAE: premium gold market control + ESG credibility. AU members: infrastructure + agricultural contracts.',
+  linked:['Libya (arms flows)','Central Africa (RSF expansion)','Wagner network','Sahel Belt'],
+  actors:[
+    {name:'SAF (Army)',type:'aggressor',role:'State military control, Khartoum operations',profit:'State resource control'},
+    {name:'RSF',type:'aggressor',role:'Paramilitary — gold, land, civilian targeting',profit:'$1B+/yr gold + looting revenue'},
+    {name:'UAE',type:'funder',role:'RSF financial backer + gold buyer + weapons',profit:'$2B+ gold trade annually',gain:'Premium certified gold market + ESG global standing'},
+    {name:'Russia (Wagner)',type:'enabler',role:'Arms supply + operational training to RSF',profit:'Gold concessions + geopolitical reach'},
+    {name:'Egypt',type:'enabler',role:'SAF supporter + regional stability interest',profit:'Nile water security + influence',gain:'Regional infrastructure leadership'},
+    {name:'Global Gold Buyers',type:'profiteer',role:'Sustain demand for uncertified Sudan gold',profit:'Price discount on conflict gold'},
+    {name:'China',type:'passive',role:'Infrastructure investment + oil buyer',profit:'$5B+ Sudan investment portfolio',gain:'Stable resource extraction + BRI expansion'},
+    {name:'African Union',type:'mediator',role:'Mediation mandate (largely stalled)',profit:'N/A',gain:'Regional stability leadership'},
+  ],
+  actions:[
+    {target:'@UAEMoFA',type:'Incentive',text:'UAE-certified gold commands 20% premium on global markets. Sudan Verified Ethical Gold protocol: UAE gains global ESG gold market leadership — worth $40B — by publishing RSF trade routes and activating transparency. The math is clear.'},
+    {target:'@AUC_Chairperson',type:'Demand',text:'African Union Sudan mandate: Day 2 Protocol — full mapping of RSF gold trade routes, SAF funding, Wagner arms flows. The data exists. Make it public. Mediation without transparency is performance, not resolution.'},
+    {target:'@UN_HRC',type:'Accountability',text:'Sudan: 150,000+ dead, 10M+ displaced. Day 5 Protocol requires immediate civilian corridor activation — food, water, medical. Who is blocking the corridors? Name them. The blocking actor is the prime roadblock to peace.'},
+    {target:'@WagnerGroup_EN',type:'Pressure',text:'Wagner Sudan operations exposed: gold concessions funding RSF violence. Day 2 Protocol: every flow is now visible. Every transaction traceable. Every actor named. The system is watching.'},
+  ]
+},
+{
+  id:'myanmar', name:'Myanmar', region:'Southeast Asia', severity:'high',
+  deaths:'50K+', property:'$60B+', env:'Deforestation, gem extraction damage', productivity:'Economy -30% since 2021',
+  protocol:['done','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'China views Myanmar as strategic buffer — unwilling to pressure junta that could destabilize border.',
+  next_step:'ASEAN-led conditional re-engagement: civilian governance benchmarks tied to trade normalization.',
+  responsible:'China (arms + trade), ASEAN (mandate), USA/EU (sanctions)',
+  gain_comply:'China: border stability + BRI corridor. ASEAN: regional credibility. Myanmar post-transition: digital economy access.',
+  linked:['Rohingya crisis (Bangladesh)','China–India competition','Golden Triangle drug trade','Thailand instability'],
+  actors:[
+    {name:'Military Junta',type:'aggressor',role:'State control + civilian suppression',profit:'$2B+/yr from gas, jade, timber, drugs'},
+    {name:'China',type:'enabler',role:'Arms supplier + trade partner + diplomatic shield',profit:'$5B+ Myanmar trade + BRI assets',gain:'Border stability + secure BRI corridor'},
+    {name:'Russia',type:'enabler',role:'Arms supplier + UN veto shield',profit:'Arms contracts + geopolitical positioning'},
+    {name:'ASEAN',type:'passive',role:'Five-Point Consensus — stalled',profit:'N/A',gain:'Regional credibility + trade normalization'},
+    {name:'Resistance (PDF)',type:'aggressor',role:'Armed opposition + civilian defense',profit:'N/A'},
+    {name:'USA/EU',type:'mediator',role:'Sanctions — partially effective',profit:'N/A',gain:'Democratic governance restoration'},
+    {name:'Thailand',type:'passive',role:'Border trade + refugee hosting',profit:'Trade access',gain:'Stable border + tourism recovery'},
+    {name:'Gas Companies',type:'profiteer',role:'POSCO, TotalEnergies — junta revenue',profit:'$1B+/yr gas revenues to junta'},
+  ],
+  actions:[
+    {target:'@MFAChina_Eng',type:'Incentive',text:'China\'s Myanmar stability framework: junta instability = border collapse = refugee flows = BRI disruption. ASEAN civilian governance pathway protects all three Chinese interests simultaneously. The frame: Myanmar stability IS Chinese national interest.'},
+    {target:'@ASEAN',type:'Demand',text:'ASEAN Five-Point Consensus has produced zero results in 3 years. Day 1 Protocol: every member state declares their role. Who is supplying arms? Who is buying junta resources? Neutrality that enables is not neutrality — it is participation.'},
+    {target:'@EU_Commission',type:'Accountability',text:'TotalEnergies gas revenue to Myanmar junta: $200M+/yr. EU sanctions list excludes gas. Day 2 Protocol: this is now visible. Every EU company funding the junta is named. What is the policy response?'},
+    {target:'@StateDept',type:'Pressure',text:'Myanmar targeted sanctions: junta-linked businesses (gems, timber, gas) generate $2B+/yr. Precision pressure on these flows — not blanket isolation — creates civilian governance incentive without economic collapse. What is the targeted list?'},
+  ]
+},
+{
+  id:'ethiopia', name:'Ethiopia', region:'Africa', severity:'high',
+  deaths:'500K+', property:'$50B+', env:'Agricultural collapse, Tigray famine conditions', productivity:'$30B economic loss',
+  protocol:['done','done','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Internal faction split between federal government and regional forces. Amhara escalation post-Tigray ceasefire.',
+  next_step:'Restore internal trust channels. Reduce Amhara militia escalation. Regional dialogue pipeline reactivation.',
+  responsible:'Ethiopian government, AU (Pretoria Agreement), IGAD',
+  gain_comply:'Infrastructure expansion + Horn of Africa regional leadership + IMF debt relief.',
+  linked:['Sudan (arms flows)','Somalia (regional stability)','Eritrea (border)','Red Sea access'],
+  actors:[
+    {name:'Federal Government',type:'aggressor',role:'Military operations, blockade of Tigray',profit:'Political control',gain:'IMF debt relief + infrastructure investment'},
+    {name:'TPLF',type:'aggressor',role:'Tigray regional force (ceasefire signed)',profit:'Regional autonomy',gain:'Political inclusion + reconstruction'},
+    {name:'Amhara Fano',type:'aggressor',role:'Militia — active escalation post-Tigray',profit:'Regional control'},
+    {name:'Eritrea',type:'enabler',role:'Military involvement in Tigray operations',profit:'Border security + leverage'},
+    {name:'African Union',type:'mediator',role:'Pretoria Agreement broker',profit:'N/A',gain:'Stability anchor + continental leadership'},
+    {name:'USA/EU',type:'mediator',role:'Aid conditionality + diplomatic pressure',profit:'N/A',gain:'Horn of Africa stability'},
+    {name:'China',type:'passive',role:'Infrastructure investor + debt holder',profit:'$15B+ investment protection',gain:'Stable BRI partner'},
+    {name:'UAE',type:'passive',role:'Quiet mediator + investment',profit:'Agricultural + port investment',gain:'Red Sea influence'},
+  ],
+  actions:[
+    {target:'@PMEthiopia',type:'Demand',text:'Ethiopia Day 3 Protocol: Amhara Fano escalation disrupts the Pretoria ceasefire and reactivates the famine corridor. Declare federal action to disarm Fano militias. The Horn of Africa regional leadership position requires this step today.'},
+    {target:'@AUC_Chairperson',type:'Accountability',text:'Pretoria Agreement: signed. Ceasefire: partial. Amhara escalation: ongoing. Day 4 Protocol — live accountability session. What commitments were made? What has been delivered? The gap between the two is where 500,000 deaths live.'},
+    {target:'@IGAD',type:'Demand',text:'IGAD Ethiopia mandate: activate Day 5 civilian reset. Tigray humanitarian corridors must be fully open. Every blocked convoy is a documented failure of the regional system. Name the blocker. Activate the corridor.'},
+    {target:'@USAIDEthiopia',type:'Incentive',text:'Ethiopia incentive flip: $10B in infrastructure investment + IMF debt restructuring unlocks when Amhara corridor opens and federal disarmament of Fano begins. Peace is the more profitable path. When does it start?'},
+  ]
+},
+{
+  id:'afghanistan', name:'Afghanistan', region:'Central Asia', severity:'high',
+  deaths:'200K+', property:'$80B+', env:'Opium crop destruction, irrigation collapse', productivity:'$20B GDP annual loss',
+  protocol:['pending','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Taliban governance rejects external political conditions. No state actor willing to be seen legitimizing Taliban.',
+  next_step:'Civilian-first conditional engagement: food, healthcare, education — no political preconditions. Economic re-entry pathway.',
+  responsible:'Pakistan (stability), UN (civilian systems), China (economic engagement)',
+  gain_comply:'Global trade re-entry + economic normalization + end to brain-drain crisis.',
+  linked:['Pakistan (border, extremism)','India–Pakistan tension','Iran (Shia-Sunni)','Central Asia drug routes'],
+  actors:[
+    {name:'Taliban',type:'aggressor',role:'Governance + military control',profit:'Opium trade: $1.5B+/yr',gain:'Economic normalization + global trade access'},
+    {name:'Pakistan (ISI)',type:'enabler',role:'Historical Taliban support + border control',profit:'Strategic depth + leverage',gain:'Regional stability + IMF support'},
+    {name:'China',type:'passive',role:'BRI extension interest + mineral rights',profit:'$1T+ mineral deposits access',gain:'Stable resource extraction partner'},
+    {name:'USA',type:'passive',role:'Post-withdrawal — frozen assets ($7B)',profit:'Leverage via frozen assets'},
+    {name:'Iran',type:'passive',role:'Shia minority protection interest',profit:'Border stability',gain:'Trade corridor access'},
+    {name:'Russia',type:'passive',role:'Counter-NATO interest',profit:'US destabilization value'},
+    {name:'Drug Cartels',type:'profiteer',role:'Opium/heroin distribution networks',profit:'$60B+ global heroin market'},
+    {name:'India',type:'passive',role:'Counter-Pakistan interest, historical ties',profit:'N/A',gain:'Regional influence + trade route access'},
+  ],
+  actions:[
+    {target:'@UN_HRC',type:'Demand',text:'Afghanistan Day 5 Protocol: 28 million people need civilian systems NOW — food, water, healthcare, education. No political preconditions. Civilian-first engagement is not normalization — it is the prerequisite for normalization. Activate today.'},
+    {target:'@MFAChina_Eng',type:'Incentive',text:'Afghanistan holds $1T+ in lithium, copper, rare earths. China gains guaranteed extraction rights through civilian governance pathway. Taliban normalization = BRI Kabul extension. The math requires civilian system investment first.'},
+    {target:'@PakistanMFA',type:'Pressure',text:'Pakistan-Afghanistan border: 3 million Afghan refugees. $5B annual economic cost to Pakistan. The incentive flip: stable Afghanistan = reduced refugee pressure + trade corridor + IMF credit improvement. ISI calculation needs updating.'},
+    {target:'@SecGen',type:'Accountability',text:'$7B in frozen Afghan central bank assets. Afghan people own this money — not the Taliban, not the USA. Day 4 Protocol: what is the legal mechanism to return this to civilian systems? Who is blocking it? Name them.'},
+  ]
+},
+{
+  id:'somalia', name:'Somalia', region:'Africa', severity:'high',
+  deaths:'500K+', property:'$40B+', env:'Coastal ecosystem damage, drought amplification', productivity:'Near-zero formal economy',
+  protocol:['pending','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Fragmentation — no single actor controls enough of the country to implement national agreements.',
+  next_step:'Region-by-region stabilization clusters. Decentralized coordination. Maritime economy anchor.',
+  responsible:'AMISOM/AU (security), UN (coordination), regional clan structures',
+  gain_comply:'Maritime economy (ports, trade routes) + fishing rights + Red Sea trade access.',
+  linked:['Ethiopia (regional stability)','Yemen (Houthi corridor)','Kenya (border)','Gulf of Aden shipping'],
+  actors:[
+    {name:'Al-Shabaab',type:'aggressor',role:'Insurgent control of rural areas',profit:'$100M+/yr taxation + extortion',gain:'Political inclusion pathway'},
+    {name:'Federal Government',type:'aggressor',role:'Nominal state control + urban centers',profit:'Aid capture',gain:'Legitimate governance + IMF recognition'},
+    {name:'Clan Networks',type:'enabler',role:'Real governance + economic control',profit:'Resource control',gain:'Formal economic inclusion'},
+    {name:'AMISOM/ATMIS',type:'mediator',role:'African Union security force',profit:'N/A',gain:'Regional stability + mandate success'},
+    {name:'UAE',type:'funder',role:'Port investment + military base',profit:'Berbera port + Red Sea position',gain:'Expanded maritime network'},
+    {name:'Turkey',type:'enabler',role:'Military training + investment',profit:'Influence + contracts',gain:'Regional diplomatic standing'},
+    {name:'Ethiopia',type:'passive',role:'Border + regional stability',profit:'Trade route access',gain:'Stable neighbor + sea access'},
+    {name:'Piracy networks',type:'profiteer',role:'Gulf of Aden shipping extortion',profit:'$100M+ peak, declining'},
+  ],
+  actions:[
+    {target:'@UN_HRC',type:'Demand',text:'Somalia: not one conflict — fifteen local systems. Day 1 Protocol requires region-by-region declaration. Puntland, Somaliland, Jubaland, Hirshabelle — each zone, each actor, each commitment. National agreements fail here. Local ones can succeed.'},
+    {target:'@AUC_Chairperson',type:'Incentive',text:'Somalia maritime economy: $300M+/yr in fishing rights, $2B+ in Red Sea trade access. AU stabilization = African maritime leadership. The incentive: stable Somalia gives Africa a trade corridor. What is the AU commitment to Day 5?'},
+    {target:'@TurkeyMFA',type:'Accountability',text:'Turkey Somalia investment: military training + Mogadishu port. Day 2 Protocol: full transparency on funding flows, military support, governance conditions. Influence without accountability sustains the system it claims to resolve.'},
+    {target:'@IMFNews',type:'Incentive',text:'Somalia debt relief + financial system integration activates when clan governance structures are formally included in economic frameworks. Exclusion of real power holders from economic systems guarantees continued fragmentation.'},
+  ]
+},
+{
+  id:'libya', name:'Libya', region:'Africa', severity:'high',
+  deaths:'30K+', property:'$200B+', env:'Oil infrastructure damage, coastal pollution', productivity:'Oil revenue halved, $20B/yr loss',
+  protocol:['done','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Factional competition for oil revenue. External actors (Turkey, UAE, Russia) back opposite sides.',
+  next_step:'Centralized National Oil Corporation control. Unified revenue sharing. External weapons embargo enforcement.',
+  responsible:'UN (political process), Turkey + UAE + Egypt (external actors), NOC (oil)',
+  gain_comply:'Oil stability contracts + long-term export agreements + Mediterranean trade access.',
+  linked:['Sahel Belt (arms south)','Sudan (arms + Wagner)','Mediterranean migration','Tunisia instability'],
+  actors:[
+    {name:'GNU (Tripoli)',type:'aggressor',role:'UN-recognized western government',profit:'Oil revenue capture',gain:'Unified government status + international recognition'},
+    {name:'LNA/Haftar (East)',type:'aggressor',role:'Eastern military force',profit:'Oil field control + Russian backing',gain:'Political inclusion + security sector integration'},
+    {name:'Turkey',type:'enabler',role:'Military support to GNU (drones, troops)',profit:'Gas rights + military base + contracts',gain:'Mediterranean energy dominance'},
+    {name:'UAE',type:'enabler',role:'Military support to LNA (aircraft, weapons)',profit:'Oil contracts + counter-Turkey positioning',gain:'Regional influence normalization'},
+    {name:'Russia (Wagner)',type:'enabler',role:'LNA military support + oil control',profit:'Oil concessions + Mediterranean naval access'},
+    {name:'Egypt',type:'enabler',role:'LNA political + military support',profit:'Border stability + Libyan gas',gain:'Western Libya trade corridor'},
+    {name:'EU',type:'passive',role:'Migration concern + oil import',profit:'$10B+/yr Libyan oil imports',gain:'Migration control + stable oil supply'},
+    {name:'Oil Companies',type:'profiteer',role:'ENI, BP — production despite conflict',profit:'$15B+/yr Libya oil revenue'},
+  ],
+  actions:[
+    {target:'@UN_Libya',type:'Demand',text:'Libya Day 2 Protocol: full public mapping of oil revenue flows between GNU and LNA, Turkish military contracts, Wagner concession agreements, UAE weapons transfers. Libya has $60B in oil wealth. Every citizen deserves to see where it goes.'},
+    {target:'@TurkeyMFA',type:'Accountability',text:'Turkey Libya deployment: military personnel, drone systems, maritime agreements. Day 4 Protocol — live accountability. What is Turkey\'s declared exit condition? What verified step ends the deployment? The protocol requires an answer today.'},
+    {target:'@UAEMoFA',type:'Incentive',text:'UAE gains normalized Mediterranean trade access + priority reconstruction contracts when LNA and GNU reach verified oil-sharing agreement. The UAE incentive: peace is worth $50B more than the current faction-backing position.'},
+    {target:'@EU_Commission',type:'Pressure',text:'EU imports $10B+/yr of Libyan oil — funding both sides of the conflict simultaneously. Day 3 Protocol: condition oil contracts on verified unified NOC control. The EU is a passive stabilizer becoming an active funder. Make the shift.'},
+  ]
+},
+{
+  id:'sahel', name:'Sahel Belt', region:'Africa', severity:'critical',
+  deaths:'50K+/yr', property:'$150B cumulative', env:'Desertification, water stress, crop failure', productivity:'40%+ youth unemployment',
+  protocol:['pending','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Junta governments hostile to external governance conditions. Wagner presence creates alternate loyalty system.',
+  next_step:'Agricultural + water infrastructure — no political strings. Bottom-up local stability clusters.',
+  responsible:'AU/ECOWAS (regional), EU (development), local governance clusters',
+  gain_comply:'Food security + economic opportunity. China: stable extraction. EU: reduced migration. AU: stability leadership.',
+  linked:['Libya (arms south)','Sudan (RSF expansion)','Nigeria (Boko Haram)','Mali/Burkina/Niger (AES bloc)'],
+  actors:[
+    {name:'JNIM (al-Qaeda)',type:'aggressor',role:'Jihadist insurgency across Sahel',profit:'Taxation, kidnapping, drug trade'},
+    {name:'ISGS (ISIS)',type:'aggressor',role:'Competing jihadist force',profit:'Territory + taxation'},
+    {name:'Wagner/Africa Corps',type:'enabler',role:'Military operations (Mali, Burkina, Niger)',profit:'Gold + diamond concessions + influence',gain:'N/A — exits when stability contract beats extraction'},
+    {name:'AES Juntas',type:'aggressor',role:'Mali, Burkina Faso, Niger — military governments',profit:'Power retention + resource control',gain:'Economic development + legitimacy'},
+    {name:'France (exited)',type:'passive',role:'Former security anchor — created vacuum',profit:'N/A — paying the cost of exit'},
+    {name:'China',type:'passive',role:'Infrastructure investment growing',profit:'Resource extraction + influence',gain:'Stable supply chain + political influence'},
+    {name:'EU',type:'mediator',role:'Development funding + migration concern',profit:'N/A',gain:'Migration reduction + stable neighborhood'},
+    {name:'ECOWAS',type:'mediator',role:'Regional body — influence diminished',profit:'N/A',gain:'Organizational relevance + stability'},
+  ],
+  actions:[
+    {target:'@AUC_Chairperson',type:'Demand',text:'Sahel: fastest-growing conflict region globally. Wagner present in 3 countries. ECOWAS authority collapsed. Day 1 Protocol: AU declares a regional emergency framework — not a political process, a food and water system. Agriculture first. Governance follows stability, not the reverse.'},
+    {target:'@EU_Commission',type:'Incentive',text:'EU Sahel investment: $1 in agricultural infrastructure reduces migration cost by $14. The math: €5B in Sahel food systems = €70B reduction in European migration expenditure. This is not charity. It is the rational allocation.'},
+    {target:'@ECOWAS',type:'Accountability',text:'ECOWAS Niger coup response: sanctions that hurt civilians, not juntas. Day 4 Protocol: what has changed for Nigerien civilians since the sanctions? If the answer is "made worse" — the tool must change. Accountability means updating the approach.'},
+    {target:'@WFP',type:'Demand',text:'Sahel food crisis: 40 million people at acute food insecurity. Day 5 Protocol requires immediate agricultural activation — local production, regional supply chains, water systems. Name every blocked distribution point. Make every blocker visible.'},
+  ]
+},
+{
+  id:'armenia-az', name:'Armenia–Azerbaijan', region:'Caucasus', severity:'medium',
+  deaths:'7K+', property:'$15B+', env:'Nagorno-Karabakh displacement, landmine contamination', productivity:'$5B trade corridor unrealized',
+  protocol:['done','done','done','active','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Final peace treaty delayed by Armenian domestic politics and unresolved corridor terms.',
+  next_step:'Border demarcation agreement. Zangezur corridor terms. Armenian domestic consensus building.',
+  responsible:'Armenia + Azerbaijan (direct), EU (framework), Russia (diminished)',
+  gain_comply:'Trade corridor dominance — Baku-Yerevan-EU route worth $10B+/yr. Tourism + energy integration.',
+  linked:['Russia–Ukraine (Russian leverage reduction)','Turkey (pan-Turkic)','Iran (Zangezur border)','Georgia (corridor)'],
+  actors:[
+    {name:'Azerbaijan',type:'aggressor',role:'Military operations + territorial control',profit:'Karabakh oil + gas + strategic corridor',gain:'EU energy supplier status + trade corridor dominance'},
+    {name:'Armenia',type:'aggressor',role:'Territorial defense + peace negotiation',profit:'N/A',gain:'Security guarantee + economic integration + EU association'},
+    {name:'Turkey',type:'enabler',role:'Azerbaijan military + political support',profit:'Zangezur corridor + pan-Turkic influence',gain:'EU-Turkey transit hub status'},
+    {name:'Russia',type:'passive',role:'Peacekeepers withdrawn — influence diminished',profit:'Leverage decline',gain:'N/A — losing strategic position'},
+    {name:'EU',type:'mediator',role:'Peace framework + energy interest',profit:'Alternative Russian gas route',gain:'Energy security + stable South Caucasus'},
+    {name:'Iran',type:'passive',role:'Zangezur border concern',profit:'N/A',gain:'Corridor terms that preserve Iran-Armenia border'},
+    {name:'BP/SOCAR',type:'profiteer',role:'Caspian oil + BTC pipeline',profit:'$5B+/yr Azerbaijani oil'},
+    {name:'USA',type:'mediator',role:'Peace process support',profit:'N/A',gain:'Russian influence reduction + democratic anchor'},
+  ],
+  actions:[
+    {target:'@IlhamAliyev',type:'Incentive',text:'Azerbaijan peace treaty: signed agreement = EU energy supplier premium + $10B/yr Zangezur corridor revenue + normalization dividends. The delay cost: $2B/yr in unrealized corridor value. Every month without treaty = $166M lost.'},
+    {target:'@NikolPashinyan',type:'Incentive',text:'Armenia peace treaty: EU association agreement + security guarantee + $5B reconstruction package activates upon signed border demarcation. The domestic political cost of delay is higher than the cost of agreement. The math now favors signing.'},
+    {target:'@EU_Commission',type:'Demand',text:'EU Armenia-Azerbaijan framework: Day 4 Protocol — accountability session. What commitments were made in the Brussels process? What remains unsigned? Name the specific clause blocking completion. Diplomatic ambiguity is now visible.'},
+    {target:'@CharlesMichel',type:'Pressure',text:'South Caucasus peace: EU has the leverage — energy contracts, association agreements, infrastructure funding. Day 6 Protocol: activate the incentive flip. Make the signed treaty worth $20B more than the delay. EU has the tool. Use it.'},
+  ]
+},
+{
+  id:'india-pak', name:'India–Pakistan', region:'South Asia', severity:'high',
+  deaths:'Ongoing escalation risk', property:'$5T+ potential', env:'Nuclear scenario — existential', productivity:'$300B/yr unrealized trade',
+  protocol:['active','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Domestic political incentives in both countries favor nationalist posturing over de-escalation. Kashmir narrative is locked.',
+  next_step:'Separate economic track from political track. Launch trade normalization independent of Kashmir resolution.',
+  responsible:'India + Pakistan (direct), USA (back-channel), UAE (quiet mediator)',
+  gain_comply:'India: $150B trade expansion. Pakistan: economic stabilization + IMF relief. Region: $500B unrealized trade value.',
+  linked:['Afghanistan (Pakistan proxy)','China–India competition','Global nuclear risk','Bangladesh (regional)'],
+  actors:[
+    {name:'India',type:'aggressor',role:'Nuclear deterrence + LOC military posture',profit:'Domestic political mobilization',gain:'$150B trade expansion + regional supply chain hub'},
+    {name:'Pakistan',type:'aggressor',role:'Nuclear deterrence + proxy tension',profit:'Defense budget justification + domestic control',gain:'Economic stabilization + IMF leverage relief'},
+    {name:'China',type:'enabler',role:'Pakistan strategic partner (CPEC $60B)',profit:'Anti-India positioning + CPEC protection',gain:'N/A — gains more from stability for BRI'},
+    {name:'USA',type:'mediator',role:'India QUAD partner + Pakistan counter-terror',profit:'Arms sales to both sides',gain:'Nuclear risk reduction + regional stability'},
+    {name:'Arms Industry',type:'profiteer',role:'F-16 (Pakistan), Rafale (India), missiles (both)',profit:'$10B+/yr combined defense sales'},
+    {name:'UAE',type:'mediator',role:'Quiet back-channel mediator',profit:'N/A',gain:'Regional trade hub + diplomatic influence'},
+    {name:'Terror Networks',type:'enabler',role:'Cross-border escalation triggers',profit:'Conflict perpetuation'},
+    {name:'Saudi Arabia',type:'passive',role:'Pakistan economic support',profit:'Influence',gain:'Regional stability + reduced sectarian export'},
+  ],
+  actions:[
+    {target:'@PMOIndia',type:'Incentive',text:'India-Pakistan trade normalization — separated from Kashmir: $150B trade expansion, regional supply chain hub status, SAARC revival. The economic track does not require political resolution. Separate the tracks. Start the economic one today.'},
+    {target:'@GovtofPakistan',type:'Incentive',text:'Pakistan economic stabilization requires trade normalization with India more than it requires Kashmir resolution. $50B in bilateral trade reduces IMF dependency by 60%. The math is clear. The political frame is the obstacle — not the economic reality.'},
+    {target:'@POTUS',type:'Demand',text:'India-Pakistan: 2 nuclear states, 1.7 billion people, zero real-time communication hotline. Day 1 Protocol: US back-channel must establish verified direct communication channel between both nuclear commands within 30 days. This is the minimum.'},
+    {target:'@UAEMoFA',type:'Incentive',text:'UAE India-Pakistan back-channel: activate Day 6. Trade normalization framework — UAE as neutral settlement hub, Dubai as trade corridor anchor. UAE gains: $100B in regional trade flows through Jebel Ali. The incentive aligns.'},
+  ]
+},
+{
+  id:'iraq', name:'Iraq', region:'Middle East', severity:'medium',
+  deaths:'200K+', property:'$200B+', env:'Oil spill contamination, Tigris-Euphrates damage', productivity:'$50B/yr instability cost',
+  protocol:['done','done','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Iran-backed PMF militias operate parallel to state — outside state accountability.',
+  next_step:'PMF integration into state security or formal dissolution. Oil revenue transparency framework.',
+  responsible:'Iraq government (PMF), USA (influence), Iran (PMF control)',
+  gain_comply:'Energy + reconstruction contracts. Regional stability dividend. Oil sector modernization.',
+  linked:['Syria (ISIS remnants)','Iran (PMF control)','Israel–Palestine (Iran proxy)','Kurdistan independence'],
+  actors:[
+    {name:'PMF Militias',type:'aggressor',role:'Iran-backed parallel military',profit:'$2B+/yr state budget + smuggling',gain:'Formal integration + legal economic access'},
+    {name:'Iran',type:'enabler',role:'PMF command + political influence',profit:'Iraqi state capture + oil leverage',gain:'Regional influence through stable Iraq'},
+    {name:'ISIS remnants',type:'aggressor',role:'Ongoing insurgency in rural areas',profit:'Taxation + territory'},
+    {name:'USA',type:'mediator',role:'Military presence + counter-ISIS',profit:'Oil contracts + strategic positioning',gain:'Stable Iraq = reduced deployment cost'},
+    {name:'Kurdistan (KRG)',type:'passive',role:'Semi-autonomous oil producer',profit:'$15B/yr oil revenue',gain:'Formal independence pathway + oil agreements'},
+    {name:'Oil Companies',type:'profiteer',role:'BP, ExxonMobil, CNOOC — Iraq oil',profit:'$50B+/yr Iraq oil production'},
+    {name:'Turkey',type:'passive',role:'Border + Kurdish concern + trade',profit:'$15B Iraq trade',gain:'PKK containment + trade expansion'},
+    {name:'China',type:'passive',role:'Largest Iraq oil buyer + infrastructure',profit:'$20B+/yr Iraqi oil',gain:'Stable oil supply + BRI node'},
+  ],
+  actions:[
+    {target:'@IraqiGovt',type:'Demand',text:'Iraq Day 3 Protocol: PMF militias operating outside state command = parallel power system. Day 3 disruption requires formal PMF integration or dissolution timeline. The state that cannot control its own military cannot stabilize. What is the 90-day plan?'},
+    {target:'@IranMFA_en',type:'Accountability',text:'Iran PMF control in Iraq: $2B+/yr in Iraqi state funds flows through Iran-commanded militias. Day 2 Protocol: full public mapping of PMF funding, command structure, and political instructions. Iran\'s Iraqi interest is visible. Now it is documented.'},
+    {target:'@POTUS',type:'Incentive',text:'USA Iraq presence cost: $50B+/yr. Stable Iraq = withdrawal + $20B/yr in energy contracts for US companies + regional Iran containment without military presence. The incentive flip for US policy: peace is cheaper than presence.'},
+    {target:'@UN_HRC',type:'Demand',text:'Iraq oil revenue transparency: $80B+/yr in oil income. Where does it go? Day 2 Protocol requires full public audit of oil revenue distribution — federal, KRG, PMF capture. Iraqis own this data. Make it public.'},
+  ]
+},
+{
+  id:'mexico-colombia', name:'Mexico / Colombia', region:'Americas', severity:'high',
+  deaths:'40K+/yr (Mexico), 5K+/yr (Colombia)', property:'$100B+', env:'Coca eradication damage, deforestation', productivity:'$200B/yr organized crime tax on economy',
+  protocol:['pending','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'USA drug demand sustains the entire economy. Cartel revenues exceed many national defense budgets.',
+  next_step:'Economic redirection — shift cartel labor and infrastructure to legal markets. Demand reduction at consumption end.',
+  responsible:'USA (demand reduction), Mexico/Colombia (economic pathways), IMF (investment)',
+  gain_comply:'Legal market expansion + tourism economy + agricultural diversification.',
+  linked:['Venezuela (arms + drugs)','Haiti (gang spillover)','USA domestic politics','Central America migration'],
+  actors:[
+    {name:'Sinaloa Cartel',type:'aggressor',role:'Drug production + global distribution',profit:'$30B+/yr revenue'},
+    {name:'CJNG',type:'aggressor',role:'Fastest-growing cartel + fentanyl',profit:'$20B+/yr revenue'},
+    {name:'FARC dissidents',type:'aggressor',role:'Colombia armed groups + coca',profit:'$1B+/yr'},
+    {name:'USA',type:'enabler',role:'Primary drug market + arms supplier',profit:'$150B/yr drug market + arms sales',gain:'Reduced fentanyl deaths + border security + migration reduction'},
+    {name:'Banks',type:'profiteer',role:'Money laundering — HSBC, others',profit:'$500B+/yr laundered globally'},
+    {name:'Mexico Government',type:'passive',role:'Captured institutions + security failures',profit:'N/A',gain:'State sovereignty restoration + investment'},
+    {name:'Colombia Government',type:'mediator',role:'Total Peace policy (Petro)',profit:'N/A',gain:'Stable territory + EU trade deal benefits'},
+    {name:'Arms Manufacturers',type:'profiteer',role:'US guns = 70% of cartel weapons',profit:'$500M+/yr cartel-linked sales'},
+  ],
+  actions:[
+    {target:'@POTUS',type:'Demand',text:'USA is the market that funds the cartels. 100,000 fentanyl deaths/yr in America. Day 3 Protocol — demand-side disruption: decriminalization + treatment infrastructure reduces cartel revenue by 40%. The cartel economy runs on American consumption. Change the consumption.'},
+    {target:'@lopezobrador_',type:'Incentive',text:'Mexico legal economy pathway: $50B in agricultural, manufacturing, and tourism investment activates for every region that exits cartel control. The incentive flip: legal employment must pay more than cartel wages. What is the minimum wage guarantee in Sinaloa today?'},
+    {target:'@IvanDuque',type:'Accountability',text:'Colombia Total Peace: FARC dissidents, ELN, Gulf Clan — all negotiating simultaneously. Day 4 Protocol: which groups have declared? Which have not? The protocol requires public declaration from every actor. Silence is non-participation.'},
+    {target:'@FinCEN_News',type:'Demand',text:'Cartel money laundering: $500B+/yr flows through global financial system. HSBC $1.9B fine for laundering cartel funds — then business as usual. Day 2 Protocol: full public mapping of known laundering routes. Fines without exposure change nothing.'},
+  ]
+},
+{
+  id:'venezuela', name:'Venezuela', region:'Americas', severity:'medium',
+  deaths:'30K+', property:'$200B+', env:'Oil infrastructure collapse, Orinoco damage', productivity:'80% GDP contraction since 2014',
+  protocol:['done','pending','pending','pending','pending','pending','pending'],
+  protocol_labels:['Declaration','Exposure','Disruption','Accountability','Civilian Reset','Incentive Flip','Verification'],
+  roadblock:'Maduro government has no incentive to reform as long as sanctions provide nationalist narrative and China/Russia provide economic lifeline.',
+  next_step:'Phased sanctions relief tied to electoral conditions. China and Russia leverage toward political transition.',
+  responsible:'USA (sanctions design), China + Russia (economic lifeline), Venezuela opposition',
+  gain_comply:'Energy revival + trade normalization + IMF re-entry. Region: reduced migration (7M+ diaspora).',
+  linked:['Colombia (FARC/ELN refuge)','Cuba (military support)','Russia (Maduro backing)','USA domestic politics'],
+  actors:[
+    {name:'Maduro Government',type:'aggressor',role:'Authoritarian governance + resource control',profit:'Oil revenue + sanctions narrative',gain:'Political survival + economic normalization'},
+    {name:'China',type:'enabler',role:'$60B+ in loans + oil-for-loans',profit:'Oil at discount + influence',gain:'Loan repayment + stable energy supplier'},
+    {name:'Russia',type:'enabler',role:'Military + diplomatic support',profit:'Military contracts + influence',gain:'N/A — costs outweigh gains'},
+    {name:'USA',type:'mediator',role:'Sanctions regime + opposition support',profit:'N/A',gain:'Democratic governance + migration reduction + energy supply'},
+    {name:'Cuba',type:'enabler',role:'Intelligence + military + political model',profit:'Oil subsidies from Venezuela',gain:'N/A — Venezuela collapse hurts Cuba most'},
+    {name:'Oil Companies',type:'profiteer',role:'Chevron (exception), others — watching',profit:'$5B+/yr (Chevron license)'},
+    {name:'Venezuelan Opposition',type:'mediator',role:'Electoral challenge + diaspora',profit:'N/A',gain:'Democratic governance + return of diaspora'},
+    {name:'Colombia',type:'passive',role:'2M+ Venezuelan refugees hosting',profit:'N/A — net cost',gain:'Stable neighbor + reduced migration burden'},
+  ],
+  actions:[
+    {target:'@NicolasMaduro',type:'Incentive',text:'Venezuela incentive flip: phased sanctions relief pathway — each verified electoral condition met unlocks $10B in trade normalization. Total package: $80B in economic revival. The math: cooperation with transition = survival + prosperity. Continuation = isolation + collapse.'},
+    {target:'@MFAChina_Eng',type:'Pressure',text:'China Venezuela loans: $60B+ mostly unrecoverable under current trajectory. Stable Venezuela with normal governance repays China. Collapsed Venezuela repays nothing. China\'s financial interest requires political transition support. The math has changed.'},
+    {target:'@POTUS',type:'Demand',text:'USA Venezuela sanctions: 7 million refugees — largest displacement crisis in hemisphere. Blanket sanctions that prevent economic recovery = sanctions that create migration. Redesign: precision sanctions on Maduro inner circle only. Everyone else gets economic pathway.'},
+    {target:'@UN_HRC',type:'Accountability',text:'Venezuela 30,000+ political prisoners, extrajudicial killings, press suppression. Day 4 Protocol — live accountability session. Every documented case. Every named official. Every action taken by international bodies. Every gap between mandate and action.'},
+  ]
+},
+];
+
+// RENDER GLOBAL METRICS
+const gmData = [
+  {val:'15',label:'Conflicts Tracked',color:'var(--text)'},
+  {val:'~2.8M+',label:'Lives Lost (est.)',color:'var(--red)'},
+  {val:'$2.5T+',label:'Property Destroyed',color:'var(--red)'},
+  {val:'$8–12T',label:'Ripple Loss (Stark)',color:'var(--amber)'},
+  {val:'0 / 7',label:'Protocol Days Active',color:'var(--blue)'},
+  {val:'12 / 120+',label:'Actors Compliant',color:'var(--amber)'},
+  {val:'3 / 15',label:'Exposure Complete',color:'var(--green)'},
+  {val:'Mar 2026',label:'Dashboard Date',color:'var(--muted)'},
+];
+const gmEl = document.getElementById('global-metrics');
+gmData.forEach(g=>{
+  gmEl.innerHTML += `<div class="gm"><div class="gm-val" style="color:${g.color}">${g.val}</div><div class="gm-label">${g.label}</div></div>`;
+});
+
+// RENDER CONFLICT CARDS
+const grid = document.getElementById('conflict-grid');
+const detailPanel = document.getElementById('detail-panel');
+
+CONFLICTS.forEach(c=>{
+  const card = document.createElement('div');
+  card.className = 'conflict-card';
+  card.id = 'card-'+c.id;
+  const pBar = c.protocol.map(s=>`<div class="pb-day ${s}"></div>`).join('');
+  card.innerHTML = `
+    <div class="cc-top">
+      <div><div class="cc-name">${c.name}</div><div class="cc-region">${c.region}</div></div>
+      <span class="severity-badge sev-${c.severity}">${c.severity}</span>
+    </div>
+    <div class="cc-stats">
+      <div class="cc-stat"><div class="cc-stat-val">${c.deaths}</div><div class="cc-stat-label">Lives lost</div></div>
+      <div class="cc-stat"><div class="cc-stat-val" style="color:var(--amber)">${c.property}</div><div class="cc-stat-label">Property damage</div></div>
+    </div>
+    <div class="protocol-bar">${pBar}</div>
+    <div class="cc-roadblock">${c.roadblock}</div>
+  `;
+  card.onclick = ()=>openDetail(c.id);
+  grid.appendChild(card);
+});
+
+function openDetail(id){
+  const c = CONFLICTS.find(x=>x.id===id);
+  document.querySelectorAll('.conflict-card').forEach(el=>el.classList.remove('active'));
+  document.getElementById('card-'+id).classList.add('active');
+
+  const dayColors = c.protocol.map(s=> s==='done'?'var(--green)':s==='active'?'var(--blue)':s==='blocked'?'var(--red)':'var(--muted)');
+
+  const pdDays = c.protocol.map((s,i)=>`
+    <div class="pd-day ${s}">
+      <div class="pd-num ${s}">D${i+1}</div>
+      <div class="pd-label">${c.protocol_labels[i]}</div>
+    </div>`).join('');
+
+  const actorCards = c.actors.map(a=>`
+    <div class="actor-card">
+      <div class="actor-top">
+        <div class="actor-name">${a.name}</div>
+        <span class="actor-type at-${a.type}">${a.type}</span>
+      </div>
+      <div class="actor-role">${a.role}</div>
+      ${a.profit?`<div class="actor-profit">${a.profit}</div>`:''}
+      ${a.gain?`<div class="actor-gain">Gain if compliant: ${a.gain}</div>`:''}
+    </div>`).join('');
+
+  const actionBtns = c.actions.map(a=>`
+    <button class="action-btn" onclick="postToX('${a.target}','${escapeQ(a.text)}','${c.name}')">
+      <div class="action-btn-top">
+        <div class="action-btn-target">${a.target}</div>
+        <div class="action-btn-type">${a.type}</div>
+      </div>
+      <div class="action-btn-text">${a.text.substring(0,120)}...</div>
+      <div class="action-btn-cta">Tap to post on 𝕏 →</div>
+    </button>`).join('');
+
+  const linkedTags = c.linked.map(l=>`<span class="ltag">${l}</span>`).join('');
+
+  detailPanel.innerHTML = `
+    <div class="dp-header">
+      <div>
+        <div class="dp-title">${c.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:4px">${c.region} · ${c.severity.toUpperCase()} SEVERITY</div>
+      </div>
+      <button class="dp-close" onclick="closeDetail()">✕ Close</button>
+    </div>
+
+    <div class="dp-grid">
+      <div class="dp-box">
+        <div class="dp-box-title">Human cost</div>
+        <div class="dp-row"><span class="dp-row-label">Lives lost</span><span class="dp-row-val red">${c.deaths}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Property damage</span><span class="dp-row-val red">${c.property}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Environment</span><span class="dp-row-val amber" style="font-size:10px;text-align:right">${c.env}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Productivity</span><span class="dp-row-val amber" style="font-size:10px;text-align:right">${c.productivity}</span></div>
+      </div>
+      <div class="dp-box">
+        <div class="dp-box-title">Next step</div>
+        <div style="font-size:12px;line-height:1.6;color:var(--green);margin-bottom:.75rem">${c.next_step}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Responsible: ${c.responsible}</div>
+      </div>
+    </div>
+
+    <div class="protocol-detail">
+      <div class="section-title" style="margin-bottom:.75rem">7-Day Protocol Status</div>
+      <div class="pd-days">${pdDays}</div>
+    </div>
+
+    <div class="info-boxes">
+      <div class="ib ib-red">
+        <div class="ib-title">Prime Roadblock</div>
+        <div class="ib-text">${c.roadblock}</div>
+      </div>
+      <div class="ib ib-green">
+        <div class="ib-title">What Actors Gain by Complying</div>
+        <div class="ib-text">${c.gain_comply}</div>
+      </div>
+    </div>
+
+    <div class="actors-section">
+      <div class="section-title" style="margin-bottom:.75rem">Key Actors — Roles, Profits, Gains</div>
+      <div class="actor-grid">${actorCards}</div>
+    </div>
+
+    <div class="linkage-box">
+      <div class="linkage-title">Conflicts this feeds</div>
+      <div class="linkage-tags">${linkedTags}</div>
+    </div>
+
+    <div class="actions-section">
+      <div class="section-title" style="margin-bottom:.75rem">1-Click Actions — Post directly to key actors</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:1rem;font-family:var(--font-mono)">Each button opens X with a pre-written message tagged to the actor. From any account. One tap.</div>
+      <div class="action-grid">${actionBtns}</div>
+    </div>
+  `;
+
+  detailPanel.classList.add('open');
+  setTimeout(()=>detailPanel.scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+function closeDetail(){
+  detailPanel.classList.remove('open');
+  document.querySelectorAll('.conflict-card').forEach(el=>el.classList.remove('active'));
+}
+
+function escapeQ(s){return s.replace(/'/g,"\\'")}
+
+function postToX(target, text, conflictName){
+  const fullText = `${text}\n\n#NoWarSimulation #${conflictName.replace(/[^a-zA-Z]/g,'')} #7DayProtocol\n\nhttps://nowar-simulation.github.io`;
+  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(fullText)}`;
+  window.open(url,'_blank','noopener,noreferrer');
+  showToast(`Opening X · Message to ${target} ready to post`);
+}
+
+function shareToX(){
+  const text = `THE NO-WAR SIMULATION — Live Global Conflict Monitor\n\n15 conflicts. Every profiteer exposed. Every actor mapped. 1-click to pressure any leader, company, or government.\n\nWar is organized continuity. Anything organized can be reorganized.\n\n#NoWarSimulation #7DayProtocol`;
+  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://nowar-simulation.github.io')}`;
+  window.open(url,'_blank','noopener,noreferrer');
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+</script>
+</body>
+</html>
